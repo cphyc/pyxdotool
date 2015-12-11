@@ -20,7 +20,6 @@ class Instruction:
         self.stderr = None
         self.returncode = None
 
-        
     def exec(self):
         proc = subprocess.run([xdt] + self.instructions,
                               stdout=subprocess.PIPE,
@@ -38,7 +37,7 @@ class Instruction:
         self.returncode = proc.returncode
         return self
 
-    def consumeArgs(self, out):
+    def _consumeArgs(self, out):
         if type(out) == tuple:
             _mine, _pass = out[0], out[1:]
             _pass = self if len(_pass) == 0 else _pass
@@ -50,7 +49,7 @@ class Instruction:
     def addInstr(fun):
         def wrapper(_self, *args, **kwargs):
             out = fun(_self, *args, **kwargs)
-            _mine, _pass = _self.consumeArgs(out)
+            _mine, _pass = _self._consumeArgs(out)
             
             _self.instructions.extend([str(ins) for ins in _mine])
             return _pass
@@ -60,30 +59,30 @@ class Instruction:
     def addCallback(fun):
         def wrapper(_self, *args, **kwargs):
             out = fun(_self, *args, **kwargs)
-            _mine, _pass = _self.consumeArgs(out)
+            _mine, _pass = _self._consumeArgs(out)
             
             _self.callbacks[_self.counter] = _mine
             _self.counter += 1
             return _pass
         return wrapper
 
-    def intParser(self, gen):
+    def _intParser(self, gen):
         line = next(gen)
         return int(line)
     
-    def geomParser(self, gen):
+    def _geomParser(self, gen):
         ''' Extract the geometry from a line: Geomtry: WxH'''
         line = next(gen)
         W, H = [int(e) for e in line.split(':')[1].split('x')]
         return {'width': W, 'heigth': H}
 
-    def positionParser(self, gen):
+    def _positionParser(self, gen):
         line = next(gen)
         tmp = [int(e) for e in line.split(': ')[1].split(' (')[0].split(',')]
         X, Y = tmp
         return {'x': X, 'y': Y}
 
-    def emptyParser(self, gen):
+    def _emptyParser(self, gen):
         next(gen)
         return {}
     
@@ -101,12 +100,12 @@ class Instruction:
     @addInstr
     @addCallback
     def getActiveWindow(self):
-        return (lambda g: {'window': self.intParser(g)}, ['getactivewindow'])
+        return (lambda g: {'window': self._intParser(g)}, ['getactivewindow'])
 
     @addInstr
     @addCallback
     def getWindowFocus(self):
-        return (lambda g: {'window': self.intParser(g)}, ['getwindowfocus'])
+        return (lambda g: {'window': self._intParser(g)}, ['getwindowfocus'])
 
     @addInstr
     @addCallback
@@ -117,13 +116,13 @@ class Instruction:
     @addInstr
     @addCallback
     def getWindowPid(self, *args):
-        return (lambda g: {'window_pid': self.intParser(g)},
+        return (lambda g: {'window_pid': self._intParser(g)},
                 ['getwindowpid'] + list(args))
 
     @addInstr
     @addCallback
     def getWindowGeometry(self, *args):
-        parser = self.compose(self.emptyParser, self.positionParser, self.geomParser)
+        parser = self.compose(self._emptyParser, self._positionParser, self._geomParser)
         return (lambda g: {'window_geometry': parser(g)},
                 ['getwindowgeometry'] + list(args))
 
@@ -152,7 +151,7 @@ class Instruction:
     @addCallback
     def search(self, regexp, *args, **kwargs):
         print('For now, only the first results will be saved')
-        parser = lambda g: self.intParser(g)
+        parser = lambda g: self._intParser(g)
         instructions = ['search'] + self.parseOptions(**kwargs) + [regexp]
 
         return (parser, instructions)
@@ -161,7 +160,7 @@ class Instruction:
     @addInstr
     @addCallback
     def selectWindow(self):
-        parser = lambda g: self.intParser(g)
+        parser = lambda g: self._intParser(g)
         return (parser, ['selectwindow'])
             
     def behave(self):
@@ -286,7 +285,7 @@ class Instruction:
     @addInstr
     @addCallback
     def getNumDesktops(self):
-        parser = lambda g: {'n_desktop': self.intParser(g)}
+        parser = lambda g: {'n_desktop': self._intParser(g)}
         return (parser, ['get_num_desktops'])
     
     @addInstr
@@ -296,7 +295,7 @@ class Instruction:
     @addInstr
     @addCallback
     def getDesktop(self):
-        parser = lambda g: {'desktop': self.intParser(g)}
+        parser = lambda g: {'desktop': self._intParser(g)}
         return (parser, ['get_desktop'])
 
     @addInstr
@@ -308,15 +307,15 @@ class Instruction:
     @addCallback
     def getDesktopForWindow(self):
         l_window = [window] if window is not None else []
-        parser = lambda g: {'desktop': self.intParser(g)}
+        parser = lambda g: {'desktop': self._intParser(g)}
         return (parser, ['get_desktop_for_window'] + l_window)
-
 
     def setDesktopViewport(self):
         print('Unsupported')
 
     def getDesktopViewport(self):
         print('Unsupported')
+        
     @addInstr
     def sleep(self, time):
         return (['sleep', time])
